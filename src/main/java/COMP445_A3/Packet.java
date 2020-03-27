@@ -1,4 +1,4 @@
-package ca.concordia;
+package COMP445_A3;
 
 import java.io.IOException;
 import java.net.Inet4Address;

@@ -14,6 +14,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
+import java.util.stream.IntStream;
 
 import static java.nio.channels.SelectionKey.OP_READ;
 
@@ -23,6 +24,11 @@ public class UDPClient {
 
     private static void runClient(SocketAddress routerAddr, InetSocketAddress serverAddr, String request) throws IOException {
         try(DatagramChannel channel = DatagramChannel.open()){
+            int dataLength = request.getBytes().length;
+            System.out.println("Data length: " + dataLength);
+            int NumOfPacket = dataLength/1014+1;
+            System.out.println("Number of packet: " + NumOfPacket);
+
             // Three-way handshake
 
             // First handshake
@@ -46,18 +52,20 @@ public class UDPClient {
                 Selector selector = Selector.open();
                 channel.register(selector, OP_READ);
                 logger.info("Waiting for the Second handshake");
-                selector.select(5000);
+                selector.select(500);
 
                 Set<SelectionKey> keys = selector.selectedKeys();
                 // If not get response, will resent first handshake
                 if(keys.isEmpty()){
                     logger.error("No response after timeout");
-                } else {
-                    // if get response
+                }
+                // if get response
+                else {
                     ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
                     SocketAddress router = channel.receive(buf);
                     buf.flip();
                     Packet resp = Packet.fromBuffer(buf);
+                    logger.info("received second handshake: ");
                     logger.info("Packet: {}", resp);
                     logger.info("Router: {}", router);
                     logger.info("Sequence Number: {}", resp.getSequenceNumber());
@@ -80,6 +88,51 @@ public class UDPClient {
                     logger.info("Allow to start data transmission");
 
                     // Starting transfer data
+                    int windowSize = 5;
+                    long[] seq = IntStream.range(0, windowSize*2).mapToLong(i -> 0).toArray();
+
+                    Packet Data = new Packet.Builder()
+                            .setType(0)
+                            .setSequenceNumber(0)
+                            .setPortNumber(serverAddr.getPort())
+                            .setPeerAddress(serverAddr.getAddress())
+                            .setPayload(request.getBytes())
+                            .create();
+                    channel.send(Data.toBuffer(), routerAddr);
+                    logger.info("Sending Data.");
+
+                    // Try to receive Data ACK
+                    channel.configureBlocking(false);
+                    selector = Selector.open();
+                    channel.register(selector, OP_READ);
+                    logger.info("Waiting for the Data ACK");
+                    selector.select(500);
+
+                    keys = selector.selectedKeys();
+                    // If not receive Data ACK
+                    if(keys.isEmpty()){
+                        logger.error("No response after timeout");
+                    } else {
+                        // if receive Data ACK
+                        buf = ByteBuffer.allocate(Packet.MAX_LEN);
+                        router = channel.receive(buf);
+                        buf.flip();
+                        resp = Packet.fromBuffer(buf);
+                        logger.info("received Data ACK: ");
+                        logger.info("Packet: {}", resp);
+                        logger.info("Router: {}", router);
+                        logger.info("Sequence Number: {}", resp.getSequenceNumber());
+                        payload = new String(resp.getPayload(), StandardCharsets.UTF_8);
+                        logger.info("Payload: {}",  payload);
+                        logger.info("Data transfer success");
+
+                        keys.clear();
+                    }
+
+//                    for (int i = 0; i < seq.length; i++){
+//                        System.out.println("seq[" + i +"]: " + seq[i]);
+//                    }
+
                     break;
                 }
             }
@@ -150,14 +203,15 @@ public class UDPClient {
         // Server address
         String serverHost = (String) opts.valueOf("server-host");
         int serverPort = Integer.parseInt((String) opts.valueOf("server-port"));
-//        String routerHost = "localhost";
-//        String serverHost = "localhost";
-//        int routerPort = 3000;
-//        int serverPort = 3002;
         SocketAddress routerAddress = new InetSocketAddress(routerHost, routerPort);
         InetSocketAddress serverAddress = new InetSocketAddress(serverHost, serverPort);
 
-        String request = "Hello world";
+//        StringBuilder request = new StringBuilder();
+//        int numC = 1013;
+//        for (int i = 0; i < numC; i++){
+//            request.append("1");
+//        }
+        String request = "hello world";
         runClient(routerAddress, serverAddress, request);
     }
 }

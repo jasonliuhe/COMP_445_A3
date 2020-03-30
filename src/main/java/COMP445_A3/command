@@ -1,0 +1,2 @@
+cd /Users/heliu/Documents/Project/COMP445/A3/Assignment_3/router/macos
+./router --port=3000 --drop-rate=0.2 --max-delay=10ms --seed=1

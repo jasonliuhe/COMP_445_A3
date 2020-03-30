@@ -13,6 +13,7 @@ import java.nio.ByteOrder;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.util.Arrays;
 import java.util.Set;
 
 import static java.nio.channels.SelectionKey.OP_READ;
@@ -73,6 +74,27 @@ public class UDPServer {
                     logger.info("Payload: {}", payload);
                     logger.info("Router: {}", router);
                     logger.info("Allow to start data transmission");
+                }
+
+                if (packet.getType() == 0){
+                    logger.info("received Data packet");
+                    long seq = packet.getSequenceNumber();
+                    String payload = new String(packet.getPayload());
+                    logger.info("Packet: {}", packet);
+                    logger.info("Payload: {}", payload);
+                    logger.info("Router: {}", router);
+                    // Send the response to the router not the client.
+                    // The peer address of the packet is the address of the client already.
+                    // We can use toBuilder to copy properties of the current packet.
+                    // This demonstrate how to create a new packet from an existing packet.
+                    // send second handshake
+                    Packet ACK = packet.toBuilder()
+                            .setType(1)
+                            .setSequenceNumber(packet.getSequenceNumber())
+                            .setPayload("ACK".getBytes())
+                            .create();
+                    channel.send(ACK.toBuffer(), router);
+                    logger.info("sending Data ACK");
                 }
             }
         }

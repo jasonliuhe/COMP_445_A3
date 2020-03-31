@@ -10,6 +10,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.AcceptPendingException;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -33,6 +34,9 @@ public class UDPServer {
                     .allocate(Packet.MAX_LEN)
                     .order(ByteOrder.BIG_ENDIAN);
 
+            long SYN;
+            String[] payloads = new String[0];
+            boolean[] ACKs = new boolean[0];
 
             while (true) {
                 buf.clear();
@@ -46,7 +50,10 @@ public class UDPServer {
                 //first handshake
                 if (packet.getType() == 2) {
                     logger.info("received first handshake");
-                    long seq = packet.getSequenceNumber();
+                    SYN = packet.getSequenceNumber();
+                    payloads = new String[(int) SYN];
+                    ACKs = new boolean[(int)SYN];
+                    logger.info("SYN: {}", SYN);
                     String payload = "";
                     logger.info("Packet: {}", packet);
                     logger.info("Payload: {}", payload);
@@ -57,7 +64,7 @@ public class UDPServer {
                     // This demonstrate how to create a new packet from an existing packet.
                     // send second handshake
                     Packet resp = packet.toBuilder()
-                            .setType(2)
+                            .setType(3)
                             .setSequenceNumber(packet.getSequenceNumber())
                             .setPayload(payload.getBytes())
                             .create();
@@ -76,26 +83,60 @@ public class UDPServer {
                     logger.info("Allow to start data transmission");
                 }
 
+                // received data
                 if (packet.getType() == 0){
                     logger.info("received Data packet");
                     long seq = packet.getSequenceNumber();
-                    String payload = new String(packet.getPayload());
-                    logger.info("Packet: {}", packet);
-                    logger.info("Payload: {}", payload);
-                    logger.info("Router: {}", router);
-                    // Send the response to the router not the client.
-                    // The peer address of the packet is the address of the client already.
-                    // We can use toBuilder to copy properties of the current packet.
-                    // This demonstrate how to create a new packet from an existing packet.
-                    // send second handshake
-                    Packet ACK = packet.toBuilder()
-                            .setType(1)
-                            .setSequenceNumber(packet.getSequenceNumber())
-                            .setPayload("ACK".getBytes())
-                            .create();
-                    channel.send(ACK.toBuffer(), router);
-                    logger.info("sending Data ACK");
+                    if (ACKs[(int)seq]){
+                        logger.info("Server have already received this packet {}.", seq);
+                        Packet ACK = packet.toBuilder()
+                                .setType(1)
+                                .setSequenceNumber(packet.getSequenceNumber())
+                                .setPayload("".getBytes())
+                                .create();
+                        channel.send(ACK.toBuffer(), router);
+                        logger.info("sending Data ACK");
+                        continue;
+                    } else {
+                        String payload = new String(packet.getPayload());
+                        payloads[(int)seq] = payload;
+                        ACKs[(int)seq] = true;
+                        logger.info("Packet: {}", packet);
+                        logger.info("Payload: {}", payload);
+                        logger.info("Router: {}", router);
+                        // Send the response to the router not the client.
+                        // The peer address of the packet is the address of the client already.
+                        // We can use toBuilder to copy properties of the current packet.
+                        // This demonstrate how to create a new packet from an existing packet.
+                        // send second handshake
+                        Packet ACK = packet.toBuilder()
+                                .setType(1)
+                                .setSequenceNumber(packet.getSequenceNumber())
+                                .setPayload("".getBytes())
+                                .create();
+                        channel.send(ACK.toBuffer(), router);
+                        logger.info("sending Data ACK");
+                    }
                 }
+
+                boolean getAllData = true;
+                for (int o = 0; o < ACKs.length; o++){
+                    if (!ACKs[o]){
+                        getAllData = false;
+                        break;
+                    }
+                }
+
+                if (getAllData){
+                    StringBuilder request = new StringBuilder();
+                    for (int p = 0; p < payloads.length; p++){
+                        request.append(payloads[p]);
+                    }
+                    logger.info("get request: ");
+                    logger.info("{}", request.toString());
+                    logger.info("request length: {}", request.length());
+                }
+
             }
         }
     }

@@ -14,7 +14,6 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
-import java.util.stream.IntStream;
 
 import static java.nio.channels.SelectionKey.OP_READ;
 
@@ -22,22 +21,43 @@ public class UDPClient {
 
     private static final Logger logger = LoggerFactory.getLogger(UDPClient.class);
 
-    private static void runClient(SocketAddress routerAddr, InetSocketAddress serverAddr, String request) throws IOException {
+    private static void ClientSendTo (SocketAddress routerAddr, InetSocketAddress serverAddr, String request) throws IOException {
         try(DatagramChannel channel = DatagramChannel.open()){
             int dataLength = request.getBytes().length;
-            System.out.println("Data length: " + dataLength);
-            int NumOfPacket = dataLength/1014+1;
-            System.out.println("Number of packet: " + NumOfPacket);
+            long NumOfPacket = dataLength/1014+1;
+
+            // create packets list
+            Packet[] packets = new Packet[(int) NumOfPacket];
+            for (int i = 0; i < packets.length; i++){
+                if (i == packets.length-1){
+                    packets[i] = new Packet.Builder()
+                        .setType(0)
+                        .setSequenceNumber(i)
+                        .setPortNumber(serverAddr.getPort())
+                        .setPeerAddress(serverAddr.getAddress())
+                        .setPayload(request.substring(i*1013).getBytes())
+                        .create();
+//                    logger.info("{}", request.substring(i*1014-1).getBytes().length);
+                } else {
+                    packets[i] = new Packet.Builder()
+                        .setType(0)
+                        .setSequenceNumber(i)
+                        .setPortNumber(serverAddr.getPort())
+                        .setPeerAddress(serverAddr.getAddress())
+                        .setPayload(request.substring(i*1013, 1013+i*1013).getBytes())
+                        .create();
+//                    logger.info("{}", request.substring(i*1014, 1013+i*1014).getBytes().length);
+                }
+            }
 
             // Three-way handshake
 
             // First handshake
             while (true){
                 // create packet for handshake 1
-                String SYN = "1";
                 Packet HS1 = new Packet.Builder()
                         .setType(2)     // type: SYN
-                        .setSequenceNumber(1L)      // SYN 0
+                        .setSequenceNumber(NumOfPacket)      // SYN
                         .setPortNumber(serverAddr.getPort())
                         .setPeerAddress(serverAddr.getAddress())
                         .setPayload("".getBytes())
@@ -72,107 +92,95 @@ public class UDPClient {
                     String payload = new String(resp.getPayload(), StandardCharsets.UTF_8);
                     logger.info("Payload: {}",  payload);
 
-                    keys.clear();
-
-                    // send third handshake
-                    long ACK = resp.getSequenceNumber();
                     Packet HS3 = new Packet.Builder()
                             .setType(1)
-                            .setSequenceNumber(ACK)
+                            .setSequenceNumber(0L)
                             .setPortNumber(serverAddr.getPort())
                             .setPeerAddress(serverAddr.getAddress())
                             .setPayload("".getBytes())
                             .create();
                     channel.send(HS3.toBuffer(), routerAddr);
-                    logger.info("Sending third handshake.");
-                    logger.info("Allow to start data transmission");
+                    logger.info("Sending third handshake to router at {}", routerAddr);
 
-                    // Starting transfer data
-                    int windowSize = 5;
-                    long[] seq = IntStream.range(0, windowSize*2).mapToLong(i -> 0).toArray();
-
-                    Packet Data = new Packet.Builder()
-                            .setType(0)
-                            .setSequenceNumber(0)
-                            .setPortNumber(serverAddr.getPort())
-                            .setPeerAddress(serverAddr.getAddress())
-                            .setPayload(request.getBytes())
-                            .create();
-                    channel.send(Data.toBuffer(), routerAddr);
-                    logger.info("Sending Data.");
-
-                    // Try to receive Data ACK
-                    channel.configureBlocking(false);
-                    selector = Selector.open();
-                    channel.register(selector, OP_READ);
-                    logger.info("Waiting for the Data ACK");
-                    selector.select(500);
-
-                    keys = selector.selectedKeys();
-                    // If not receive Data ACK
-                    if(keys.isEmpty()){
-                        logger.error("No response after timeout");
-                    } else {
-                        // if receive Data ACK
-                        buf = ByteBuffer.allocate(Packet.MAX_LEN);
-                        router = channel.receive(buf);
-                        buf.flip();
-                        resp = Packet.fromBuffer(buf);
-                        logger.info("received Data ACK: ");
-                        logger.info("Packet: {}", resp);
-                        logger.info("Router: {}", router);
-                        logger.info("Sequence Number: {}", resp.getSequenceNumber());
-                        payload = new String(resp.getPayload(), StandardCharsets.UTF_8);
-                        logger.info("Payload: {}",  payload);
-                        logger.info("Data transfer success");
-
-                        keys.clear();
-                    }
-
-//                    for (int i = 0; i < seq.length; i++){
-//                        System.out.println("seq[" + i +"]: " + seq[i]);
-//                    }
+                    keys.clear();
 
                     break;
                 }
             }
 
+            // Starting transfer data
+            logger.info("Start to sending data to router {}", routerAddr);
+            int windowSize = 4;
+            boolean[] ACKs = new boolean[packets.length];
 
-//            Packet p = new Packet.Builder()
-//                    .setType(0)
-//                    .setSequenceNumber(1L)
-//                    .setPortNumber(serverAddr.getPort())
-//                    .setPeerAddress(serverAddr.getAddress())
-//                    .setPayload(request.getBytes())
-//                    .create();
-//            channel.send(p.toBuffer(), routerAddr);
-//
-//            logger.info("Sending \"{}\" to router at {}", request, routerAddr);
+            while (true) {
+                // if packets number is less than window size
+                // maximum of payload is 4052 bytes
+                if (packets.length <= windowSize){
+                    for (int i = 0; i < packets.length; i++){
+                        if (!ACKs[i]){
+                            channel.send(packets[i].toBuffer(), routerAddr);
+                            logger.info("Sending packet {}", packets[i].getSequenceNumber());
+                            logger.info("Payload: {}", new String(packets[i].getPayload()));
+                            logger.info("Payload length: {}", new String(packets[i].getPayload()).length());
+                        }
+                    }
+                    // Try to receive Data ACK
+                    for (int i = 0; i < packets.length; i++){
+                        channel.configureBlocking(false);
+                        Selector selector = Selector.open();
+                        channel.register(selector, OP_READ);
+                        logger.info("Waiting for the Data ACK");
+                        selector.select(500);
 
-            // Try to receive a packet within timeout.
-//            channel.configureBlocking(false);
-//            Selector selector = Selector.open();
-//            channel.register(selector, OP_READ);
-//            logger.info("Waiting for the response");
-//            selector.select(5000);
-//
-//            Set<SelectionKey> keys = selector.selectedKeys();
-//            if(keys.isEmpty()){
-//                logger.error("No response after timeout");
-//                return;
-//            }
+                        Set<SelectionKey> keys = selector.selectedKeys();
+                        // If not receive Data ACK
+                        if (keys.isEmpty()) {
+                            logger.error("No response after timeout");
+                        } else {
+                            // if receive Data ACK
+                            ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
+                            SocketAddress router = channel.receive(buf);
+                            buf.flip();
+                            Packet resp = Packet.fromBuffer(buf);
+                            logger.info("received Data ACK: ");
+                            logger.info("Packet: {}", resp);
+                            logger.info("Router: {}", router);
+                            logger.info("Sequence Number: {}", resp.getSequenceNumber());
+                            ACKs[(int) resp.getSequenceNumber()] = true;
+                            String payload = new String(resp.getPayload(), StandardCharsets.UTF_8);
+                            logger.info("Payload: {}", payload);
+                            // display ACKs
+//                            for (int o = 0; o < ACKs.length; o++){
+//                                logger.info("ACKs[{}]: {}", o, ACKs[o]);
+//                            }
+                            keys.clear();
+                            boolean getAllACKs = true;
+                            for (int p = 0; p < ACKs.length; p++){
+                                if (!ACKs[p]){
+                                    getAllACKs = false;
+                                }
+                            }
+                            if (getAllACKs){
+                                break;
+                            }
+                        }
+                    }
+                    // check all the packets get ACK.
+                    boolean getAllACKs = true;
+                    for (int p = 0; p < ACKs.length; p++){
+                        if (!ACKs[p]){
+                            getAllACKs = false;
+                        }
+                    }
+                    if (getAllACKs){
+                        logger.info("Data transfer success");
+                        break;
+                    }
+                } else {
 
-            // We just want a single response.
-//            ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
-//            SocketAddress router = channel.receive(buf);
-//            buf.flip();
-//            Packet resp = Packet.fromBuffer(buf);
-//            logger.info("Packet: {}", resp);
-//            logger.info("Router: {}", router);
-//            String payload = new String(resp.getPayload(), StandardCharsets.UTF_8);
-//            logger.info("Payload: {}",  payload);
-//
-//            keys.clear();
+                }
+            }
         }
     }
 
@@ -206,13 +214,15 @@ public class UDPClient {
         SocketAddress routerAddress = new InetSocketAddress(routerHost, routerPort);
         InetSocketAddress serverAddress = new InetSocketAddress(serverHost, serverPort);
 
-//        StringBuilder request = new StringBuilder();
-//        int numC = 1013;
-//        for (int i = 0; i < numC; i++){
-//            request.append("1");
-//        }
-        String request = "hello world";
-        runClient(routerAddress, serverAddress, request);
+        StringBuilder request = new StringBuilder();
+        int numC = 4052;
+        for (int i = 0; i < numC; i++){
+            request.append("1");
+        }
+        logger.info("request: {}", request.toString());
+//        logger.info(request.toString());
+//        String request = "hello world";
+        ClientSendTo(routerAddress, serverAddress, request.toString());
     }
 }
 

@@ -208,7 +208,7 @@ public class UDPClient {
                             logger.error("No response after timeout");
                             for (int o = windowStart; o <= windowEnd; o++){
                                 if (!ACKs[o]){
-                                    logger.info("Resend packet #{}", packets[o].getSequenceNumber());
+                                    logger.info("sending packet #{}", packets[o].getSequenceNumber());
                                     channel.send(packets[o].toBuffer(), routerAddr);
                                 }
                             }
@@ -227,8 +227,8 @@ public class UDPClient {
                                 for (int i = windowStart; i < ACKs.length; i++){
                                     if (!ACKs[i]){
                                         windowStart = i;
-                                        if (windowStart+4 < packets.length){
-                                            windowEnd = windowStart+4;
+                                        if (windowStart+3 < packets.length){
+                                            windowEnd = windowStart+3;
                                         } else {
                                             windowEnd = packets.length-1;
                                         }
@@ -255,10 +255,20 @@ public class UDPClient {
                             }
 
                             //send next window packets
+                            boolean windowSendDone = true;
                             for (int i = windowStart; i <= windowEnd; i++){
                                 if (!ACKs[i]){
-                                    channel.send(packets[i].toBuffer(), routerAddr);
-                                    logger.info("Sending packet {}", i);
+                                    windowSendDone = false;
+//                                    channel.send(packets[i].toBuffer(), routerAddr);
+//                                    logger.info("Sending packet {}", i);
+                                }
+                            }
+                            if (windowSendDone) {
+                                for (int i = windowStart; i <= windowEnd; i++){
+                                    if (!ACKs[i]){
+                                        channel.send(packets[i].toBuffer(), routerAddr);
+                                        logger.info("Sending packet {}", i);
+                                    }
                                 }
                             }
                         }
@@ -303,21 +313,21 @@ public class UDPClient {
         SocketAddress routerAddress = new InetSocketAddress(routerHost, routerPort);
         InetSocketAddress serverAddress = new InetSocketAddress(serverHost, serverPort);
 
-//        StringBuilder request = new StringBuilder();
-//        int numC = 10000;
-//        for (int i = 0; i < numC; i++){
-//            request.append("1");
-//        }
-        String request = "GET /localhost:8007 HTTP/1.1\n" +
-                "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\n" +
-                "Host: www.tutorialspoint.com\n" +
-                "Accept-Language: en-us\n" +
-                "Accept-Encoding: gzip, deflate\n" +
-                "Connection: Keep-Alive";
-        logger.info("request: {}", request);
+        StringBuilder request = new StringBuilder();
+        int numC = 20000;
+        for (int i = 0; i < numC; i++){
+            request.append("1");
+        }
+//        String request = "GET /localhost:8007 HTTP/1.1\n" +
+//                "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\n" +
+//                "Host: www.tutorialspoint.com\n" +
+//                "Accept-Language: en-us\n" +
+//                "Accept-Encoding: gzip, deflate\n" +
+//                "Connection: Keep-Alive";
+//        logger.info("request: {}", request);
 //        logger.info(request.toString());
 
-        boolean sendDone = ClientSendTo(routerAddress, serverAddress, request);
+        boolean sendDone = ClientSendTo(routerAddress, serverAddress, request.toString());
 
         //Todo: start receive
     }

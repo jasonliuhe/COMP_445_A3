@@ -21,15 +21,17 @@ public class UDPClient {
 
     private static final Logger logger = LoggerFactory.getLogger(UDPClient.class);
 
-    private static void ClientSendTo (SocketAddress routerAddr, InetSocketAddress serverAddr, String request) throws IOException {
+    private static boolean ClientSendTo (SocketAddress routerAddr, InetSocketAddress serverAddr, String request) throws IOException {
         try(DatagramChannel channel = DatagramChannel.open()){
             int dataLength = request.getBytes().length;
-            long NumOfPacket = dataLength/1014+1;
+            long NumOfPacket = dataLength/1013;
+            boolean transferDone = false;
 
             // create packets list
-            Packet[] packets = new Packet[(int) NumOfPacket];
-            for (int i = 0; i < packets.length; i++){
-                if (i == packets.length-1){
+            Packet[] packets = new Packet[(int) NumOfPacket+1];
+            for (int i = 0; i <= NumOfPacket; i++){
+                if (i == NumOfPacket){
+                    logger.info("payload length: {}", request.substring(i*1013).getBytes().length);
                     packets[i] = new Packet.Builder()
                         .setType(0)
                         .setSequenceNumber(i)
@@ -57,7 +59,7 @@ public class UDPClient {
                 // create packet for handshake 1
                 Packet HS1 = new Packet.Builder()
                         .setType(2)     // type: SYN
-                        .setSequenceNumber(NumOfPacket)      // SYN
+                        .setSequenceNumber(NumOfPacket+1)      // SYN
                         .setPortNumber(serverAddr.getPort())
                         .setPeerAddress(serverAddr.getAddress())
                         .setPayload("".getBytes())
@@ -114,7 +116,7 @@ public class UDPClient {
             boolean[] ACKs = new boolean[packets.length];
 
             while (true) {
-                // if packets number is less than window size
+                // if packets number is less or equal than window size
                 // maximum of payload is 4052 bytes
                 if (packets.length <= windowSize){
                     for (int i = 0; i < packets.length; i++){
@@ -175,12 +177,99 @@ public class UDPClient {
                     }
                     if (getAllACKs){
                         logger.info("Data transfer success");
-                        break;
+                        transferDone = true;
+                        return transferDone;
                     }
-                } else {
+                }
+                // if packets number is more than window size
+                else {
+                    // Sending first window size data = 4
+                    int windowStart = 0;
+                    int windowEnd = 3;
+                    for (int i = 0; i < windowSize; i++){
+                        if (!ACKs[i]){
+                            channel.send(packets[i].toBuffer(), routerAddr);
+                            logger.info("Sending packet {}", packets[i].getSequenceNumber());
+                            logger.info("Payload: {}", new String(packets[i].getPayload()));
+                            logger.info("Payload length: {}", new String(packets[i].getPayload()).length());
+                        }
+                    }
+                    // Try to receive Data ACK
+                    while (true){
+                        channel.configureBlocking(false);
+                        Selector selector = Selector.open();
+                        channel.register(selector, OP_READ);
+                        logger.info("Waiting for the Data ACK");
+                        selector.select(500);
 
+                        Set<SelectionKey> keys = selector.selectedKeys();
+                        // If not receive Data ACK
+                        if (keys.isEmpty()) {
+                            logger.error("No response after timeout");
+                            for (int o = windowStart; o <= windowEnd; o++){
+                                if (!ACKs[o]){
+                                    logger.info("Resend packet #{}", packets[o].getSequenceNumber());
+                                    channel.send(packets[o].toBuffer(), routerAddr);
+                                }
+                            }
+                        } else {
+                            // if receive Data ACK
+                            ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
+                            SocketAddress router = channel.receive(buf);
+                            buf.flip();
+                            Packet resp = Packet.fromBuffer(buf);
+                            logger.info("received Data ACK: {}", resp.getSequenceNumber());
+//                            logger.info("Packet: {}", resp);
+//                            logger.info("Router: {}", router);
+//                            logger.info("Sequence Number: {}", resp.getSequenceNumber());
+                            ACKs[(int) resp.getSequenceNumber()] = true;
+                            if (resp.getSequenceNumber() == windowStart){
+                                for (int i = windowStart; i < ACKs.length; i++){
+                                    if (!ACKs[i]){
+                                        windowStart = i;
+                                        if (windowStart+4 < packets.length){
+                                            windowEnd = windowStart+4;
+                                        } else {
+                                            windowEnd = packets.length-1;
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+//                            String payload = new String(resp.getPayload(), StandardCharsets.UTF_8);
+//                            logger.info("Payload: {}", payload);
+                            // display ACKs
+//                            for (int o = 0; o < ACKs.length; o++){
+//                                logger.info("ACKs[{}]: {}", o, ACKs[o]);
+//                            }
+                            keys.clear();
+                            boolean getAllACKs = true;
+                            for (int p = 0; p < ACKs.length; p++){
+                                if (!ACKs[p]){
+                                    getAllACKs = false;
+                                }
+                            }
+                            if (getAllACKs){
+
+                                break;
+                            }
+
+                            //send next window packets
+                            for (int i = windowStart; i <= windowEnd; i++){
+                                if (!ACKs[i]){
+                                    channel.send(packets[i].toBuffer(), routerAddr);
+                                    logger.info("Sending packet {}", i);
+                                }
+                            }
+                        }
+                    }
+                    logger.info("transmation done.");
+                    transferDone = true;
+                    return transferDone;
                 }
             }
+
+
         }
     }
 
@@ -214,15 +303,23 @@ public class UDPClient {
         SocketAddress routerAddress = new InetSocketAddress(routerHost, routerPort);
         InetSocketAddress serverAddress = new InetSocketAddress(serverHost, serverPort);
 
-        StringBuilder request = new StringBuilder();
-        int numC = 4052;
-        for (int i = 0; i < numC; i++){
-            request.append("1");
-        }
-        logger.info("request: {}", request.toString());
+//        StringBuilder request = new StringBuilder();
+//        int numC = 10000;
+//        for (int i = 0; i < numC; i++){
+//            request.append("1");
+//        }
+        String request = "GET /localhost:8007 HTTP/1.1\n" +
+                "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\n" +
+                "Host: www.tutorialspoint.com\n" +
+                "Accept-Language: en-us\n" +
+                "Accept-Encoding: gzip, deflate\n" +
+                "Connection: Keep-Alive";
+        logger.info("request: {}", request);
 //        logger.info(request.toString());
-//        String request = "hello world";
-        ClientSendTo(routerAddress, serverAddress, request.toString());
+
+        boolean sendDone = ClientSendTo(routerAddress, serverAddress, request);
+
+        //Todo: start receive
     }
 }
 

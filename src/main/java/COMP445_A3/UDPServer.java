@@ -37,6 +37,7 @@ public class UDPServer {
             long SYN;
             String[] payloads = new String[0];
             boolean[] ACKs = new boolean[0];
+            boolean ReceivedAllData = false;
 
             while (true) {
                 buf.clear();
@@ -53,6 +54,7 @@ public class UDPServer {
                     SYN = packet.getSequenceNumber();
                     payloads = new String[(int) SYN];
                     ACKs = new boolean[(int)SYN];
+                    ReceivedAllData = false;
                     logger.info("SYN: {}", SYN);
                     String payload = "";
                     logger.info("Packet: {}", packet);
@@ -132,11 +134,16 @@ public class UDPServer {
                     for (int p = 0; p < payloads.length; p++){
                         request.append(payloads[p]);
                     }
-                    logger.info("get request: ");
+                    ReceivedAllData = true;
+                    logger.info("received all data: ");
                     logger.info("{}", request.toString());
                     logger.info("request length: {}", request.length());
                 }
 
+                // ToDo: reply to client
+                if (ReceivedAllData){
+
+                }
             }
         }
     }

@@ -283,6 +283,43 @@ public class UDPClient {
         }
     }
 
+    private static String toRequest(String input) {
+
+        String request = "";
+        String[] inputSplited = input.split("\\s+");
+
+        if (inputSplited[0].equalsIgnoreCase("GET")) {
+
+            request = "GET /localhost:8007 HTTP/1.1\n" +
+                    "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\n" +
+                    "Host: www.tutorialspoint.com\n" +
+                    "Accept-Language: en-us\n" +
+                    "Accept-Encoding: gzip, deflate\n" +
+                    "Connection: Keep-Alive";
+
+        }
+
+        else if (inputSplited[0].equalsIgnoreCase("POST")) {
+
+            request = "POST /localhost:8007 HTTP/1.1\n" +
+                    "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\n" +
+                    "Host: www.tutorialspoint.com\n" +
+                    "Accept-Language: en-us\n" +
+                    "Accept-Encoding: gzip, deflate\n" +
+                    "Connection: Keep-Alive";
+
+        }
+
+        else {
+
+            request = "N/A";
+
+        }
+
+
+        return request;
+    }
+
     public static void main(String[] args) throws IOException {
         OptionParser parser = new OptionParser();
         parser.accepts("router-host", "Router hostname")
@@ -313,23 +350,41 @@ public class UDPClient {
         SocketAddress routerAddress = new InetSocketAddress(routerHost, routerPort);
         InetSocketAddress serverAddress = new InetSocketAddress(serverHost, serverPort);
 
-        StringBuilder request = new StringBuilder();
-        int numC = 20000;
-        for (int i = 0; i < numC; i++){
-            request.append("1");
-        }
+//        StringBuilder request = new StringBuilder();
+//        int numC = 20000;
+//        for (int i = 0; i < numC; i++){
+//            request.append("1");
+//        }
+
+        // user input
+
+        String inputGet1 = "GET http://localhost:8080/";
+
+        String inputGet2 = "GET http://localhost:8080/1";
+
+        String inputPost1 = "POST --data \"update data\" http://localhost:8080/1";
+
+        String inputPost2 = "POST --data \"param1=value1&param2=value2\" http://localhost:8080/foo.txt";
+
+        String request = "";
+
 //        String request = "GET /localhost:8007 HTTP/1.1\n" +
 //                "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\n" +
 //                "Host: www.tutorialspoint.com\n" +
 //                "Accept-Language: en-us\n" +
 //                "Accept-Encoding: gzip, deflate\n" +
 //                "Connection: Keep-Alive";
-//        logger.info("request: {}", request);
-//        logger.info(request.toString());
 
-        boolean sendDone = ClientSendTo(routerAddress, serverAddress, request.toString());
+        request = toRequest(inputPost1);
+
+        logger.info("request: {}", request);
+        logger.info(request.toString());
+
+        boolean sendDone = ClientSendTo(routerAddress, serverAddress, request); //.toString()
 
         //Todo: start receive
+
+
     }
 }
 

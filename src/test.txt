@@ -1,0 +1,20 @@
+command:
+    GET http://localhost:8080/
+
+    GET http://localhost:8080/1
+
+    GET http://localhost:8080/1/2
+
+    GET http://localhost:8080/foo.txt
+
+    GET http://localhost:8080/foo5.txt
+
+    如果找不到文件要返回错误
+
+    POST --data "update data" http://localhost:8080/1
+    如果要添加内容的路径无效要返回错误
+
+    POST --data "param1=value1&param2=value2" http://localhost:8080/foo.txt
+    如果文件不存在，要新建文件
+
+

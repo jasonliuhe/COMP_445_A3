@@ -141,7 +141,10 @@ public class UDPServer {
                 }
 
                 // ToDo: reply to client
+                // use variable "request"
                 if (ReceivedAllData){
+
+
 
                 }
             }

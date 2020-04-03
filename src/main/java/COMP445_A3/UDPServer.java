@@ -36,6 +36,7 @@ import static java.util.Arrays.asList;
 public class UDPServer {
 
     private static final Logger logger = LoggerFactory.getLogger(UDPServer.class);
+    private static final String rootPath = "/Users/heliu/Documents/Project/COMP445/A3_2/packet/src/main/java/COMP445_A3/";
 
     private void listenAndServe(int port) throws IOException {
 
@@ -208,7 +209,7 @@ public class UDPServer {
 
         String body = "";
         String response = "";
-        String dir = "/Users/heliu/Documents/Project/COMP445/A3_2/packet/src/main/java/COMP445_A3/data";
+        String dir = rootPath + "data";
 
         final Date currentTime = new Date();
         final SimpleDateFormat sdf = new SimpleDateFormat("EEE, MMM d, yyyy hh:mm:ss a z");
@@ -315,7 +316,7 @@ public class UDPServer {
         String body = "";
         String response = "";
         String postData = "";
-        String dir = "/Users/heliu/Documents/Project/COMP445/A3_2/packet/src/main/java/COMP445_A3/data";
+        String dir = rootPath + "data";
 
         final Date currentTime = new Date();
         final SimpleDateFormat sdf = new SimpleDateFormat("EEE, MMM d, yyyy hh:mm:ss a z");
@@ -396,8 +397,8 @@ public class UDPServer {
                 if (inputSplited[1].contains(".")){
                     try {
                         String filedir = dir+inputSplited[1];
-                        if (filedir.equalsIgnoreCase("/Users/heliu/Documents/Project/COMP445/A3_2/packet/src/main/java/COMP445_A3/data/readonly.txt") ||
-                                filedir.equalsIgnoreCase("/Users/heliu/Documents/Project/COMP445/A3_2/packet/src/main/java/COMP445_A3/UDPServer.java") ){
+                        if (filedir.equalsIgnoreCase(rootPath+"data/readonly.txt") ||
+                                filedir.equalsIgnoreCase(rootPath+"UDPServer.java") ){
                             throw new Exception("1");
                         }
                         PrintWriter writer = new PrintWriter(dir + inputSplited[1], "UTF-8");

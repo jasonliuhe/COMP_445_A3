@@ -290,7 +290,9 @@ public class UDPClient {
 
         if (inputSplited[0].equalsIgnoreCase("GET")) {
 
-            request = "GET /localhost:8007 HTTP/1.1\n" +
+            String path = inputSplited[1].substring(21);
+
+            request = "GET "+ path +" /localhost:8007 HTTP/1.1\n" +
                     "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\n" +
                     "Host: www.tutorialspoint.com\n" +
                     "Accept-Language: en-us\n" +
@@ -301,12 +303,17 @@ public class UDPClient {
 
         else if (inputSplited[0].equalsIgnoreCase("POST")) {
 
-            request = "POST /localhost:8007 HTTP/1.1\n" +
+            String data = inputSplited[2];
+            String path = inputSplited[3].substring(21);
+
+            request = "POST "+ path +" /localhost:8007 HTTP/1.1\n" +
                     "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\n" +
                     "Host: www.tutorialspoint.com\n" +
                     "Accept-Language: en-us\n" +
                     "Accept-Encoding: gzip, deflate\n" +
-                    "Connection: Keep-Alive";
+                    "Connection: Keep-Alive\n" +
+                    "\n\n" +
+                    "Data: " + data + "\n";
 
         }
 
@@ -364,7 +371,7 @@ public class UDPClient {
 
         String inputPost1 = "POST --data \"update data\" http://localhost:8080/1";
 
-        String inputPost2 = "POST --data \"param1=value1&param2=value2\" http://localhost:8080/foo.txt";
+        String inputPost2 = "POST --data \"param1=value1&param2=value2\" http://localhost:8080/brent.txt";
 
         String request = "";
 

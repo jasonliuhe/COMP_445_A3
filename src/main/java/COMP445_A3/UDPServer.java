@@ -50,6 +50,7 @@ public class UDPServer {
             String[] payloads = new String[0];
             boolean[] ACKs = new boolean[0];
             boolean ReceivedAllData = false;
+            String Request = "";
 
             while (true) {
                 buf.clear();
@@ -146,6 +147,7 @@ public class UDPServer {
                     for (int p = 0; p < payloads.length; p++){
                         request.append(payloads[p]);
                     }
+                    Request = request.toString();
                     ReceivedAllData = true;
                     logger.info("received all data: ");
                     logger.info("{}", request.toString());
@@ -157,13 +159,41 @@ public class UDPServer {
                 // use variable "request"
                 if (ReceivedAllData){
 
-                    String input = new String(packet.getPayload());
+                    String input = Request;
+                    String response = "";
                     String[] inputSplited = input.split("\\s+");
 
                     if (inputSplited[0].equalsIgnoreCase("GET")) {
-                        getResponse(inputSplited);
+                        response = getResponse(inputSplited);
+                        logger.info("response: \r\n{}", response);
+
+                        if (packet.getType() == 4){
+                            logger.info("Start transfer data to client.");
+                            SYN = packet.getSequenceNumber();
+                            Packet resp = packet.toBuilder()
+                                    .setType(0)
+                                    .setSequenceNumber(packet.getSequenceNumber())
+                                    .setPayload(response.getBytes())
+                                    .create();
+                            channel.send(resp.toBuffer(), router);
+                            logger.info("sending Data");
+                        }
+
                     }else if (inputSplited[0].equalsIgnoreCase("POST")) {
-                        postResponse(inputSplited);
+                        response = postResponse(inputSplited);
+                        logger.info("response: \r\n{}", response);
+
+                        if (packet.getType() == 4){
+                            logger.info("Start transfer data to client.");
+                            SYN = packet.getSequenceNumber();
+                            Packet resp = packet.toBuilder()
+                                    .setType(0)
+                                    .setSequenceNumber(packet.getSequenceNumber())
+                                    .setPayload(response.getBytes())
+                                    .create();
+                            channel.send(resp.toBuffer(), router);
+                            logger.info("sending Data");
+                        }
                     }else {
                         System.out.println("Error, could not read the UDPClient request");
                     }
@@ -178,7 +208,7 @@ public class UDPServer {
 
         String body = "";
         String response = "";
-        String dir = "/Users/brent/Documents/GitHub/COMP_445_A3/src/main/java/COMP445_A3/data";
+        String dir = "/Users/heliu/Documents/Project/COMP445/A3_2/packet/src/main/java/COMP445_A3/data";
 
         final Date currentTime = new Date();
         final SimpleDateFormat sdf = new SimpleDateFormat("EEE, MMM d, yyyy hh:mm:ss a z");
@@ -210,8 +240,7 @@ public class UDPServer {
 
                     }
                     catch (NoSuchFileException e) {
-                        System.out.println(3);
-                        body = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\">\n" +
+                        body = "<!DOCTYPE HTML PUBLIC \n" +
                                 "<title>404 Not Found</title>\n" +
                                 "<h1>Not Found</h1>\n" +
                                 "<p>The requested URL was not found on the server.  If you entered the URL manually please check your spelling and try again.</p>";
@@ -248,9 +277,7 @@ public class UDPServer {
                     try {
                         File f = new File(tdir);
                         String[] pathnames = f.list();
-                        System.out.println("PathList: ");
                         for (String pathname : pathnames) {
-                            System.out.println(pathname);
                             body = body + pathname + "\r\n";
                         }
 
@@ -261,7 +288,6 @@ public class UDPServer {
                                 + body;
 
                     } catch (NullPointerException e) {
-                        System.out.println(4);
                         body = "<!DOCTYPE HTML>\n" +
                                 "<title>404 Not Found</title>\n" +
                                 "<h1>Not Found</h1>\n" +
@@ -276,8 +302,6 @@ public class UDPServer {
                 }
 
         }
-        System.out.println("Response sent to client" + response);
-
         return response;
     }
 
@@ -291,7 +315,7 @@ public class UDPServer {
         String body = "";
         String response = "";
         String postData = "";
-        String dir = "/Users/brent/Documents/GitHub/COMP_445_A3/src/main/java/COMP445_A3/data";
+        String dir = "/Users/heliu/Documents/Project/COMP445/A3_2/packet/src/main/java/COMP445_A3/data";
 
         final Date currentTime = new Date();
         final SimpleDateFormat sdf = new SimpleDateFormat("EEE, MMM d, yyyy hh:mm:ss a z");
@@ -372,8 +396,8 @@ public class UDPServer {
                 if (inputSplited[1].contains(".")){
                     try {
                         String filedir = dir+inputSplited[1];
-                        if (filedir.equalsIgnoreCase("/Users/brent/Documents/GitHub/COMP_445_A3/src/main/java/COMP445_A3/data/readonly.txt") ||
-                                filedir.equalsIgnoreCase("/Users/brent/Documents/GitHub/COMP_445_A3/src/main/java/COMP445_A3/UDPServer.java") ){
+                        if (filedir.equalsIgnoreCase("/Users/heliu/Documents/Project/COMP445/A3_2/packet/src/main/java/COMP445_A3/data/readonly.txt") ||
+                                filedir.equalsIgnoreCase("/Users/heliu/Documents/Project/COMP445/A3_2/packet/src/main/java/COMP445_A3/UDPServer.java") ){
                             throw new Exception("1");
                         }
                         PrintWriter writer = new PrintWriter(dir + inputSplited[1], "UTF-8");
@@ -424,7 +448,6 @@ public class UDPServer {
             }
 
         }
-        System.out.println("Response sent to client\n" + response);
 
         return response;
     }

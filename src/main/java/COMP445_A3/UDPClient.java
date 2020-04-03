@@ -20,7 +20,7 @@ import static java.nio.channels.SelectionKey.OP_READ;
 public class UDPClient {
 
     private static final Logger logger = LoggerFactory.getLogger(UDPClient.class);
-
+    private static final int timeOut = 500;
     private static boolean ClientSendTo (SocketAddress routerAddr, InetSocketAddress serverAddr, String request) throws IOException {
         try(DatagramChannel channel = DatagramChannel.open()){
             int dataLength = request.getBytes().length;
@@ -74,7 +74,7 @@ public class UDPClient {
                 Selector selector = Selector.open();
                 channel.register(selector, OP_READ);
                 logger.info("Waiting for the Second handshake");
-                selector.select(500);
+                selector.select(timeOut);
 
                 Set<SelectionKey> keys = selector.selectedKeys();
                 // If not get response, will resent first handshake
@@ -133,7 +133,7 @@ public class UDPClient {
                         Selector selector = Selector.open();
                         channel.register(selector, OP_READ);
                         logger.info("Waiting for the Data ACK");
-                        selector.select(500);
+                        selector.select(timeOut);
 
                         Set<SelectionKey> keys = selector.selectedKeys();
                         // If not receive Data ACK
@@ -145,6 +145,9 @@ public class UDPClient {
                             SocketAddress router = channel.receive(buf);
                             buf.flip();
                             Packet resp = Packet.fromBuffer(buf);
+                            if (resp.getType() == 0){
+                                continue;
+                            }
                             logger.info("received Data ACK: ");
                             logger.info("Packet: {}", resp);
                             logger.info("Router: {}", router);
@@ -200,7 +203,7 @@ public class UDPClient {
                         Selector selector = Selector.open();
                         channel.register(selector, OP_READ);
                         logger.info("Waiting for the Data ACK");
-                        selector.select(500);
+                        selector.select(timeOut);
 
                         Set<SelectionKey> keys = selector.selectedKeys();
                         // If not receive Data ACK
@@ -278,9 +281,50 @@ public class UDPClient {
                     return transferDone;
                 }
             }
-
-
         }
+    }
+
+    private static void ClientReceive(SocketAddress routerAddr, InetSocketAddress serverAddr) throws IOException{
+        logger.info("Client start to received data.");
+        while (true){
+            try(DatagramChannel channel = DatagramChannel.open()){
+                Packet CSYN = new Packet.Builder()
+                        .setType(4)
+                        .setSequenceNumber(0L)
+                        .setPortNumber(serverAddr.getPort())
+                        .setPeerAddress(serverAddr.getAddress())
+                        .setPayload("".getBytes())
+                        .create();
+                channel.send(CSYN.toBuffer(), routerAddr);
+                // Try to receive data within timeout.
+                channel.configureBlocking(false);
+                Selector selector = Selector.open();
+                channel.register(selector, OP_READ);
+                logger.info("Waiting for data");
+                selector.select(timeOut);
+
+                Set<SelectionKey> keys = selector.selectedKeys();
+                // If not get response, will resent first handshake
+                if(keys.isEmpty()){
+                    logger.error("No response after timeout");
+                    continue;
+                }
+                // if get response
+                else {
+                    ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
+                    SocketAddress router = channel.receive(buf);
+                    buf.flip();
+                    Packet resp = Packet.fromBuffer(buf);
+                    logger.info("received data: ");
+                    String payload = new String(resp.getPayload(), StandardCharsets.UTF_8);
+                    logger.info("Payload: \r\n{}",  payload);
+
+                    keys.clear();
+                    break;
+                    }
+            }
+        }
+
     }
 
     private static String toRequest(String input) {
@@ -388,13 +432,13 @@ public class UDPClient {
 
         // user input
 
-        String inputGet1 = "GET http://localhost:8080/";
+        String inputGet1 = "GET http://localhost:8080/1/foo1.txt";
 
         String inputGet2 = "GET http://localhost:8080/upload.txt";
 
         String inputPost1 = "POST --data \"update data\" http://localhost:8080/1";
 
-        String inputPost2 = "POST --data \"param1=value1&param2=value2\" http://localhost:8080/test.txt";
+        String inputPost2 = "POST --data \"param1=Nvalue1&param2=value2\" http://localhost:8080/test.txt";
 
         String request = "";
 
@@ -407,14 +451,13 @@ public class UDPClient {
 
         request = toRequest(inputPost2);
 
-        logger.info("request: {}", request);
-        logger.info(request.toString());
+//        logger.info("request: {}", request);
 
         boolean sendDone = ClientSendTo(routerAddress, serverAddress, request); //.toString()
 
         //Todo: start receive
 
-
+        ClientReceive(routerAddress, serverAddress);
     }
 }
 

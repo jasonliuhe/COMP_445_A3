@@ -185,8 +185,8 @@ public class UDPServer {
         sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
 
         if (inputSplited[0].equalsIgnoreCase("get")){
-//			create GET body
-//			GET /
+//					 create GET body
+//					 GET /
             if (inputSplited[1].length()<5){
                 String tdir = dir + inputSplited[1];
                 // response file content
@@ -196,7 +196,8 @@ public class UDPServer {
                     try (Stream<String> stream = Files.lines(Paths.get(tdir), UTF_8)){
                         stream.forEach(s -> contentBuilder.append(s).append("\n"));
                         body = contentBuilder.toString();
-                            response = "HTTP/1.0 200 ok\r\n" +
+                        // transfer file
+                        response = "HTTP/1.0 200 ok\r\n" +
                                     "Date: " + sdf.format(currentTime) + "\r\n" +
                                     "Content-Disposition: inline \r\n" +
                                     "Content-Disposition: attachment; filename=\"" + inputSplited[1] + "\"\r\n" +
@@ -206,6 +207,7 @@ public class UDPServer {
                                     "Access-Control-Allow-Origin: *\r\n" +
                                     "Access-Control-Allow-Credentials: true\r\n\r\n" +
                                     body;
+
                     }
                     catch (NoSuchFileException e) {
                         System.out.println(3);
@@ -246,9 +248,9 @@ public class UDPServer {
                     try {
                         File f = new File(tdir);
                         String[] pathnames = f.list();
-                        System.out.println("PathList: ");
+                            System.out.println("PathList: ");
                         for (String pathname : pathnames) {
-                            System.out.println(pathname);
+                                System.out.println(pathname);
                             body = body + pathname + "\r\n";
                         }
 
@@ -271,12 +273,104 @@ public class UDPServer {
                                 + "Content-Type: text/html\r\n\r\n"
                                 + body;
                     }
-
                 }
-
             }
 
         }
+
+//        if (inputSplited[0].equalsIgnoreCase("get")){
+////			create GET body
+////			GET /
+//            if (inputSplited[1].length()<5){
+//                String tdir = dir + inputSplited[1];
+//                // response file content
+//                if (inputSplited[1].contains(".")){
+//                    StringBuilder contentBuilder = new StringBuilder();
+//                    // NEED change path before running
+//                    try (Stream<String> stream = Files.lines(Paths.get(tdir), UTF_8)){
+//                        stream.forEach(s -> contentBuilder.append(s).append("\n"));
+//                        body = contentBuilder.toString();
+//                            response = "HTTP/1.0 200 ok\r\n" +
+//                                    "Date: " + sdf.format(currentTime) + "\r\n" +
+//                                    "Content-Disposition: inline \r\n" +
+//                                    "Content-Disposition: attachment; filename=\"" + inputSplited[1] + "\"\r\n" +
+//                                    "Content-Type: application/json\r\n" +
+//                                    "Content-Length: " + body.length() + "\r\n" +
+//                                    "Connection: close\r\n" +
+//                                    "Access-Control-Allow-Origin: *\r\n" +
+//                                    "Access-Control-Allow-Credentials: true\r\n\r\n" +
+//                                    body;
+//                    }
+//                    catch (NoSuchFileException e) {
+//                        System.out.println(3);
+//                        body = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\">\n" +
+//                                "<title>404 Not Found</title>\n" +
+//                                "<h1>Not Found</h1>\n" +
+//                                "<p>The requested URL was not found on the server.  If you entered the URL manually please check your spelling and try again.</p>";
+//                        response = "HTTP/1.0 404 Not Found\r\n" +
+//                                "Server: \r\n" +
+//                                "Date: " + sdf.format(currentTime) + "\r\n" +
+//                                "Content-Type: text/html\r\n" +
+//                                "Content-Length: " + body.length() + "\r\n" +
+//                                "Connection: close\r\n" +
+//                                "Access-Control-Allow-Origin: *\r\n" +
+//                                "Access-Control-Allow-Credentials: true\r\n\r\n" +
+//                                body;
+//                    }
+//                    catch (IOException e) {
+//                        body = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\">\n" +
+//                                "<title>400 Bad Request</title>\n" +
+//                                "<h1>Bad Request</h1>\n" +
+//                                "<p>The server cannot read the request.</p>";
+//                        response = "HTTP/1.0 400 Bad Request\r\n" +
+//                                "Server: \r\n" +
+//                                "Date: " + sdf.format(currentTime) + "\r\n" +
+//                                "Content-Type: text/html\r\n" +
+//                                "Content-Length: " + body.length() + "\r\n" +
+//                                "Connection: close\r\n" +
+//                                "Access-Control-Allow-Origin: *\r\n" +
+//                                "Access-Control-Allow-Credentials: true\r\n\r\n" +
+//                                body;
+//                    }
+//                }
+//
+//
+//                // response list of directory
+//                else {
+//                    try {
+//                        File f = new File(tdir);
+//                        String[] pathnames = f.list();
+//                        System.out.println("PathList: ");
+//                        for (String pathname : pathnames) {
+//                            System.out.println(pathname);
+//                            body = body + pathname + "\r\n";
+//                        }
+//
+//                        response = 	"HTTP/1.0 200 ok\r\n"
+//                                + "Data: " + sdf.format(currentTime) + "\r\n"
+//                                + "Content-Length: " + body.length() + "\r\n"
+//                                + "Content-Type: application/json\r\n\r\n"
+//                                + body;
+//
+//                    } catch (NullPointerException e) {
+//                        System.out.println(4);
+//                        body = "<!DOCTYPE HTML>\n" +
+//                                "<title>404 Not Found</title>\n" +
+//                                "<h1>Not Found</h1>\n" +
+//                                "<p>The requested URL was not found on the server.  If you entered the URL manually please check your spelling and try again.</p>";
+//
+//                        response = 	"HTTP/1.0 404 Not Found\r\n"
+//                                + "Data: " + sdf.format(currentTime) + "\r\n"
+//                                + "Content-Length: " + body.length() + "\r\n"
+//                                + "Content-Type: text/html\r\n\r\n"
+//                                + body;
+//                    }
+//
+//                }
+//
+//            }
+//
+//        }
         System.out.println("Response sent to client" + response);
     }
 

@@ -390,11 +390,11 @@ public class UDPClient {
 
         String inputGet1 = "GET http://localhost:8080/";
 
-        String inputGet2 = "GET http://localhost:8080/1/upload.txt";
+        String inputGet2 = "GET http://localhost:8080/upload.txt";
 
         String inputPost1 = "POST --data \"update data\" http://localhost:8080/1";
 
-        String inputPost2 = "POST --data \"param1=value1&param2=value2\" http://localhost:8080/jason.txt";
+        String inputPost2 = "POST --data \"param1=value1&param2=value2\" http://localhost:8080/test.txt";
 
         String request = "";
 
@@ -405,7 +405,7 @@ public class UDPClient {
 //                "Accept-Encoding: gzip, deflate\n" +
 //                "Connection: Keep-Alive";
 
-        request = toRequest(inputGet2);
+        request = toRequest(inputPost2);
 
         logger.info("request: {}", request);
         logger.info(request.toString());

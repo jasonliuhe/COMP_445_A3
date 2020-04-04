@@ -434,7 +434,7 @@ public class UDPClient {
 
         String inputGet1 = "GET http://localhost:8080/1/foo1.txt";
 
-        String inputGet2 = "GET http://localhost:8080/upload.txt";
+        String inputGet2 = "GET http://localhost:8007/upload.txt";
 
         String inputPost1 = "POST --data \"update data\" http://localhost:8080/1";
 

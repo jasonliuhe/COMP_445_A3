@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta charset="utf-8" />
+		<link rel="stylesheet" type="text/css" href="css/style.css" />
+		<title>COMP445 Assignment 3</title>
+	</head>
+<body>
+<h1>COMP445 Assignment 3</h1>
+
+<h2>Requirement</h2>
+
+<ol>
+	<li><a href="https://www.oracle.com/java/technologies/javase-jdk13-downloads.html" title="JDK13">Oracle JDK 13</a></li>
+	<li><a href="https://maven.apache.org/" title="Maven">Apache Maven</a></li>
+</ol>
+
+<h2>Usage</h2>
+
+<ol>
+	<li>Run router</li>
+	<li>Run UDPServer</li>
+	<li>Run UDPClient
+
+		<ol>
+			<li>You can change request on line 386</li>
+		</ol></li>
+</ol>
+
+<h2>Description</h2>
+
+<p>The code is follow the instruction of the assignment. </p>
+
+<p>This program can handle delay and packet dropping.</p>
+
+<p>The maximum of delay is 500ms by default, you can change it in UDPClient variable timeOut.</p>
+
+<p>When client try to sending data to server:</p>
+
+<ol>
+	<li>Three-way handshake
+
+		<ol>
+			<li>Client send SYN packet to server</li>
+			<li>Server send SYN-ACK packet to client</li>
+			<li>Client send </li>
+		</ol></li>
+	<li>Client start sending data
+
+		<ol>
+			<li>Window size is 4</li>
+			<li>Server will send ACK packet after it receive a packet</li>
+		</ol></li>
+	<li>Server received all data</li>
+	<li>Client send a packet which tell server I am ready for receiving response</li>
+	<li>Server read the request data</li>
+	<li>Server send response to client</li>
+	<li>Done</li>
+</ol>
+
+<h2>Example of command:</h2>
+
+<ol>
+	<li><code>&quot;GET http://localhost:8007/&quot;</code></li>
+	<li><code>&quot;GET http://localhost:8007/1&quot;</code></li>
+	<li><code>&quot;POST --data \&quot;update data\&quot; http://localhost:8007/1&quot;</code></li>
+	<li><code>&quot;POST --data \&quot;param1=value1&amp;param2=value2\&quot; http://localhost:8007/brent2.txt&quot;</code></li>
+	<li><code>&quot;POST --data \&quot;update data\&quot; http://localhost:8007/readonly.txt</code> This is readonly file, so you will received 400 bad request.</li>
+</ol>
+
+</body>
+</html>
+
